@@ -90,3 +90,30 @@
 `caption`和`label`一定要放在`hline`前面且第一个`hline`前一行的结尾要加入`\\`。
 
 将修改完后的源码粘贴到tex文件编译后就可以得到跨页显示的表格。
+## 跨页表格的分页键入“接上表”
+长表在跨越多个页面后，若需要在每页表格的顶部加入“接上表”等示意字段，可通过`\endfirsthead`和`\endhead`来实现，具体示例如下
+```
+ \begin{longtable}{cccccc}
+      \label{tab:addlabel}                                                                      \\
+      \caption{示例表}                                                                      \\
+      \hline
+      日期                     & 2006      & 2007      & 2008      & 2009     & 2010      \\
+      \hline
+      \endfirsthead
+      \multicolumn{6}{c}{(接上表)}                                                              \\
+      \endhead
+      字段1                 &            &            &            &            &            \\
+
+      字段2             & 646    & 7486    & 613    & 758    & 111  \\
+
+      字段3                 & 120  & 167  & 1654  & 1648  & 1577 
+      \hline
+  \end{longtable}%
+```
+其中关键在于
+```
+      \endfirsthead
+      \multicolumn{6}{c}{(接上表)}                                                              \\
+      \endhead
+```
+`\multicolumn{6}{c}{(接上表)} `中的6表示的是表的列数，`c`表示“接上表”三字居中显示，若左侧显示可以改为`l`，右侧显示可改为`r`。
