@@ -1,9 +1,4 @@
----
 
-- 张聪聪 华润智慧能源有限公司
-- 2020-06-10
-
----
 # 通过apline发布springboot程序的docker镜像
 ## 获取基于apline的jdk
 Alpine Linux 是一个社区开发的面向安全应用的轻量级Linux发行版。选择基于Alpine的JDK8作为springboot程序的基础运行环境，可以大大减小最终的镜像包及容器运行时所使用的资源。可执行下属命令拉取apline的jdk镜像，该镜像仅104M。
