@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: elastic-hd
+  name: elastic-hd
+  namespace: ems
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elastic-hd-selector
+  template:
+    metadata:
+      name: elastic-hd
+      labels:
+        app: elastic-hd-selector
+    spec:
+      imagePullSecrets:
+        - name: dockersecret
+      containers:
+        - image: 197.6.2.10:5000/containerize/elastichd:latest
+          name: elastic-hd-container
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9800
+              name: 9800tcp
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 2
+              memory: 1Gi
