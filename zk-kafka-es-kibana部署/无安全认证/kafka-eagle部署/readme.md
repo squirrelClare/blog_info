@@ -1,0 +1,1 @@
+kafka-eagle无法适配kafka的jmx,弃用。

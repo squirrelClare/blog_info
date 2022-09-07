@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  namespace: kafka
+spec:
+  selector:
+    matchLabels:
+      app: kafka
+  serviceName: kafka
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      imagePullSecrets:
+        - name: dockersecret
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - kafka
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: kafka
+          command:
+            - bash
+            - -ec
+            - |
+              HOSTNAME=`hostname -s`
+              if [[ $HOSTNAME =~ (.*)-([0-9]+)$ ]]; then
+                ORD=${BASH_REMATCH[2]}
+                PORT=$((ORD + 30092))
+                export KAFKA_CFG_ADVERTISED_LISTENERS="PLAINTEXT://197.6.2.43:$PORT"
+              else
+                echo "Failed to get index from hostname $HOST"
+                exit 1
+              fi
+              exec /entrypoint.sh /run.sh
+          image: 197.6.2.10:5000/bitnami/kafka:latest
+          env:
+            - name: JMX_PORT
+              value: "9999"
+            - name: ALLOW_PLAINTEXT_LISTENER
+              value: "yes"
+            - name: KAFKA_CFG_ZOOKEEPER_CONNECT
+              value: "zookeeper-0.zookeeper-hs:2181,zookeeper-1.zookeeper-hs:2181,zookeeper-2.zookeeper-hs:2181"
+            - name: KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "3"
+            - name: KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "3"
+            - name: KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "3"
+            - name: KAFKA_HEAP_OPTS
+              value: "-Xmx6g -Xms6g"
+            - name: KAFKA_CFG_MESSAGE_MAX_BYTES
+              value: "100000000"
+            - name: KAFKA_CFG_LOG_RETENTION_HOURS
+              value: "24"
+            - name: KAFKA_CFG_MAX_PARTITION_FETCH_BYTES
+              value: "200000000"
+          ports:
+            - containerPort: 9092
+          volumeMounts:
+            - name: kafka-data
+              mountPath: /bitnami
+            - mountPath: /etc/localtime
+              readOnly: true
+              name: time-data
+      # securityContext:
+      #   runAsUser: 1000
+      #   fsGroup: 1000
+      volumes:
+        - name: time-data
+          hostPath:
+            path: /usr/share/zoneinfo/Asia/Shanghai
+  volumeClaimTemplates:
+    - metadata:
+        name: kafka-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: managed-nfs-storage
+        resources:
+          requests:
+            storage: 5G

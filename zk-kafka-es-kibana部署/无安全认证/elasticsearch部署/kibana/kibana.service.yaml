@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: ems
+  name: kibana
+  labels:
+    app: kibana
+spec:
+  ports:
+    - port: 5601
+      name: webinterface
+      nodePort: 5601
+  type: NodePort
+  selector:
+    app: kibana

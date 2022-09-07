@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: ems
+  name: kibana
+  labels:
+    app: kibana
+spec:
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      imagePullSecrets:
+        - name: dockersecret
+      containers:
+        - name: kibana
+          image: 197.6.2.10:5000/kibana:7.17.5
+          ports:
+            - containerPort: 5601
+              name: webinterface
+          env:
+            - name: ELASTICSEARCH_HOSTS
+              value: "http://elasticsearch-client:9200"
+            - name: ELASTICSEARCH_USER
+              value: "elastic"
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elastic-credentials
+                  key: password
+            - name: "I18N_LOCALE"
+              value: "zh-CN"
+          volumeMounts:
+            - name: config
+              mountPath: /usr/share/kibana/config/kibana.yml
+              readOnly: true
+              subPath: kibana.yml
+      volumes:
+        - name: config
+          configMap:
+            name: kibana-config

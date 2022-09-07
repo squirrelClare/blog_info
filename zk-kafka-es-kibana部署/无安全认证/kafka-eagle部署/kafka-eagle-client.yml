@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-eagle-client
+  namespace: kafka
+spec:
+  type: NodePort
+  ports:
+    - port: 8048
+      targetPort: 8048
+      nodePort: 30048
+  selector:
+    app.kubernetes.io/name: kafka-eagle
+    app.kubernetes.io/component: kafka-eagle

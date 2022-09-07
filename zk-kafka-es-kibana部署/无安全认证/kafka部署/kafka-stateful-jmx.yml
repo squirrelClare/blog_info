@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  namespace: kafka
+spec:
+  selector:
+    matchLabels:
+      app: kafka
+  serviceName: kafka-svc
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      imagePullSecrets:
+        - name: dockersecret
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - kafka
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: kafka
+          command:
+            - bash
+            - -ec
+            - |
+              HOSTNAME=`hostname -s`
+              if [[ $HOSTNAME =~ (.*)-([0-9]+)$ ]]; then
+                ORD=${BASH_REMATCH[2]}
+                PORT=$((ORD + 30092))
+                export KAFKA_CFG_ADVERTISED_LISTENERS="PLAINTEXT://$(MY_POD_NAME).kafka-svc:$(KAFKA_PORT_NUMBER)"
+              else
+                echo "Failed to get index from hostname $HOST"
+                exit 1
+              fi
+              exec /entrypoint.sh /run.sh
+          image: 197.6.2.10:5000/bitnami/kafka:2.8.1-debian-10-r236
+          env:
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: ALLOW_PLAINTEXT_LISTENER
+              value: "yes"
+            - name: KAFKA_CFG_ZOOKEEPER_CONNECT
+              value: "zookeeper-0.zookeeper-hs:2181,zookeeper-1.zookeeper-hs:2181,zookeeper-2.zookeeper-hs:2181"
+            - name: KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "3"
+            - name: KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "3"
+            - name: KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "3"
+            - name: KAFKA_HEAP_OPTS
+              value: "-Xmx512m -Xms512m"
+            - name: KAFKA_CFG_MESSAGE_MAX_BYTES
+              value: "100000000"
+            - name: KAFKA_CFG_LOG_RETENTION_HOURS
+              value: "24"
+            - name: KAFKA_CFG_MAX_PARTITION_FETCH_BYTES
+              value: "200000000"
+            - name: TZ
+              value: "Asia/Shanghai"
+            - name: JMX_PORT
+              value: "9999"
+            - name: KAFKA_JMX_OPTS
+              value: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.port=$(JMX_PORT)"
+            - name: KAFKA_PORT_NUMBER
+              value: "9092"
+            - name: KAFKA_CFG_LISTENERS
+              value: "PLAINTEXT://:$(KAFKA_PORT_NUMBER)"
+            - name: KAFKA_CFG_LOGS_DIRS
+              value: /bitnami
+          ports:
+            - containerPort: 9092
+              name: server
+          volumeMounts:
+            - name: kafka-data
+              mountPath: /bitnami
+            # - name: config
+            #   mountPath: /opt/bitnami/kafka/bin/kafka-server-start.sh
+            #   readOnly: true
+            #   subPath: kafka-server-start.sh
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+      volumes:
+        - name: config
+          configMap:
+            name: kafka-config
+            defaultMode: 0755
+  volumeClaimTemplates:
+    - metadata:
+        name: kafka-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: managed-nfs-storage
+        resources:
+          requests:
+            storage: 5G

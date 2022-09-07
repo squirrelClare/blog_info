@@ -1,0 +1,121 @@
+# tonybian/kubernetes-zookeeper
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: zookeeper
+  namespace: kafka
+  labels:
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/component: zookeeper
+    role: zookeeper
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: zookeeper
+      app.kubernetes.io/component: zookeeper
+  serviceName: zookeeper-hs
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: zookeeper
+        app.kubernetes.io/component: zookeeper
+    spec:
+      imagePullSecrets:
+        - name: dockersecret
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: zookeeper
+                    app.kubernetes.io/component: zookeeper
+                namespaces:
+                  - "kafka"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+      containers:
+        - name: zookeeper
+          imagePullPolicy: Always
+          image: 197.6.2.10:5000/crie/zookeeper:v2.0
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
+            - name: KAFKA_OPTS
+              value: "-Djava.security.auth.login.config=file:/opt/zookeeper/conf/jass.conf"
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "0.5"
+          ports:
+            - containerPort: 2181
+              name: client
+            - containerPort: 2888
+              name: server
+            - containerPort: 3888
+              name: election
+          command:
+            - sh
+            - -c
+            - "start-zookeeper.sh \
+              --servers=3 \
+              --data_dir=/var/lib/zookeeper/data \
+              --data_log_dir=/var/lib/zookeeper/data/log \
+              --conf_dir=/opt/zookeeper/conf \
+              --client_port=2181 \
+              --election_port=3888 \
+              --server_port=2888 \
+              --tick_time=2000 \
+              --init_limit=10 \
+              --sync_limit=5 \
+              --heap=512M \
+              --max_client_cnxns=60 \
+              --snap_retain_count=3 \
+              --purge_interval=12 \
+              --max_session_timeout=40000 \
+              --min_session_timeout=4000 \
+              --log_level=INFO"
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "zookeeper-ready 2181"
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "zookeeper-ready 2181"
+            initialDelaySeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: zookeeper-data
+              mountPath: /var/lib/zookeeper
+            - name: config
+              mountPath: /opt/zookeeper/conf/jass.conf
+              subPath: jass.conf
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+      volumes:
+        - name: config
+          configMap:
+            name: zk-config
+  volumeClaimTemplates:
+    - metadata:
+        name: zookeeper-data
+        labels:
+          app: zk
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: managed-nfs-storage
+        resources:
+          requests:
+            storage: 1Gi
