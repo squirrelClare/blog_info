@@ -62,3 +62,17 @@ docker restart qinglong
 docker exec -it qinglong bash
 pnpm i
 ```
+## centos8防火墙开启
+- 开放5700端口：`firewall-cmd --zone=public --add-port=5700/tcp --permanent`
+- 开启nat转发：
+    ```
+    firewall-cmd --permanent --zone=public --add-masquerade 启用端口NAT转发
+    #将主机803端口请求转发到容器上的5700端口
+    firewall-cmd --add-forward-port=port=5700:proto=tcp:toaddr=172.17.0.2:toport=5700 --permanent
+    #重载规则
+    firewall-cmd --reload
+    #列出所有规则
+    firewall-cmd --list-all
+    ```
+- 重启docker:`systemctl restart docker`
+- 如果是云提供商提供的云主机还需要在云提供商的控制台放开5700端口。
